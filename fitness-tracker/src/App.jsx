@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { storage } from './utils/storage';
 import Dashboard from './components/Dashboard';
-import SquatTracker from './components/SquatTracker';
-import MileTracker from './components/MileTracker';
-import WeeklyMetrics from './components/WeeklyMetrics';
-import DunkAttempts from './components/DunkAttempts';
+import WorkoutTracker from './components/WorkoutTracker';
 import WorkoutCalendar from './components/WorkoutCalendar';
 
 function App() {
@@ -17,10 +14,7 @@ function App() {
 
   const navigation = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'squat', label: 'Squat', icon: '🏋️' },
-    { id: 'mile', label: 'Mile', icon: '🏃' },
-    { id: 'metrics', label: 'Metrics', icon: '📈' },
-    { id: 'dunk', label: 'Dunk', icon: '🏀' },
+    { id: 'workouts', label: 'Workouts', icon: '💪' },
     { id: 'calendar', label: 'Calendar', icon: '📅' },
   ];
 
@@ -28,14 +22,8 @@ function App() {
     switch (currentView) {
       case 'dashboard':
         return <Dashboard onNavigate={setCurrentView} />;
-      case 'squat':
-        return <SquatTracker />;
-      case 'mile':
-        return <MileTracker />;
-      case 'metrics':
-        return <WeeklyMetrics />;
-      case 'dunk':
-        return <DunkAttempts />;
+      case 'workouts':
+        return <WorkoutTracker />;
       case 'calendar':
         return <WorkoutCalendar />;
       default:
