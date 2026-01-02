@@ -5,6 +5,8 @@ const STORAGE_KEYS = {
   WEEKLY_METRICS: 'fitness_weekly_metrics',
   DUNK_ATTEMPTS: 'fitness_dunk_attempts',
   GOALS_STATUS: 'fitness_goals_status',
+  PROGRAM_SETTINGS: 'fitness_program_settings',
+  WORKOUT_LOGS: 'fitness_workout_logs',
 };
 
 // Initialize default data
@@ -26,6 +28,11 @@ const DEFAULT_DATA = {
     backSquat250: false,
     mile700: false,
   },
+  programSettings: {
+    startDate: null, // Will be set by user
+    currentWeek: 1,
+  },
+  workoutLogs: [],
 };
 
 // Storage utility functions
@@ -160,6 +167,70 @@ export const storage = {
     return maxWeight >= 235;
   },
 
+  // Program settings
+  getProgramSettings() {
+    return this.get(STORAGE_KEYS.PROGRAM_SETTINGS) || DEFAULT_DATA.programSettings;
+  },
+
+  setProgramStartDate(startDate) {
+    const settings = this.getProgramSettings();
+    settings.startDate = startDate;
+    this.set(STORAGE_KEYS.PROGRAM_SETTINGS, settings);
+  },
+
+  updateCurrentWeek(weekNumber) {
+    const settings = this.getProgramSettings();
+    settings.currentWeek = weekNumber;
+    this.set(STORAGE_KEYS.PROGRAM_SETTINGS, settings);
+  },
+
+  // Workout logs
+  getWorkoutLogs() {
+    return this.get(STORAGE_KEYS.WORKOUT_LOGS) || DEFAULT_DATA.workoutLogs;
+  },
+
+  addWorkoutLog(log) {
+    const logs = this.getWorkoutLogs();
+    const newLog = {
+      id: Date.now(),
+      ...log,
+    };
+    logs.push(newLog);
+    this.set(STORAGE_KEYS.WORKOUT_LOGS, logs);
+    return newLog;
+  },
+
+  updateWorkoutLog(id, updates) {
+    const logs = this.getWorkoutLogs();
+    const index = logs.findIndex(log => log.id === id);
+    if (index !== -1) {
+      logs[index] = { ...logs[index], ...updates };
+      this.set(STORAGE_KEYS.WORKOUT_LOGS, logs);
+      return logs[index];
+    }
+    return null;
+  },
+
+  deleteWorkoutLog(id) {
+    const logs = this.getWorkoutLogs().filter(log => log.id !== id);
+    this.set(STORAGE_KEYS.WORKOUT_LOGS, logs);
+  },
+
+  // Get workout logs for a specific date
+  getWorkoutLogByDate(date) {
+    const logs = this.getWorkoutLogs();
+    return logs.find(log => log.date === date);
+  },
+
+  // Get workout logs for a date range
+  getWorkoutLogsByDateRange(startDate, endDate) {
+    const logs = this.getWorkoutLogs();
+    return logs.filter(log => {
+      const logDate = new Date(log.date);
+      return logDate >= new Date(startDate) && logDate <= new Date(endDate);
+    });
+  },
+
   // Initialize storage with default data if empty
   initialize() {
     if (!this.get(STORAGE_KEYS.WEEKLY_METRICS)) {
@@ -167,6 +238,12 @@ export const storage = {
     }
     if (!this.get(STORAGE_KEYS.GOALS_STATUS)) {
       this.set(STORAGE_KEYS.GOALS_STATUS, DEFAULT_DATA.goalsStatus);
+    }
+    if (!this.get(STORAGE_KEYS.PROGRAM_SETTINGS)) {
+      this.set(STORAGE_KEYS.PROGRAM_SETTINGS, DEFAULT_DATA.programSettings);
+    }
+    if (!this.get(STORAGE_KEYS.WORKOUT_LOGS)) {
+      this.set(STORAGE_KEYS.WORKOUT_LOGS, DEFAULT_DATA.workoutLogs);
     }
   },
 };
