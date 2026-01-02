@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { storage, calculate1RM } from '../utils/storage';
-import { format, parseISO, startOfWeek, addDays, isSameDay } from 'date-fns';
+import { format, parseISO, startOfWeek, addDays, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 
 const WorkoutCalendar = () => {
   const [workouts, setWorkouts] = useState([]);
+  const [workoutLogs, setWorkoutLogs] = useState([]);
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
+  const [viewMode, setViewMode] = useState('week'); // 'week' or 'month'
+  const [currentMonthStart, setCurrentMonthStart] = useState(startOfMonth(new Date()));
 
   useEffect(() => {
     loadWorkouts();
@@ -12,6 +15,7 @@ const WorkoutCalendar = () => {
 
   const loadWorkouts = () => {
     setWorkouts(storage.getSquatLogs());
+    setWorkoutLogs(storage.getWorkoutLogs());
   };
 
   const weekSchedule = [
@@ -78,29 +82,151 @@ const WorkoutCalendar = () => {
     return workouts.filter(w => isSameDay(parseISO(w.date), dayDate));
   };
 
+  const getWorkoutStatus = (date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const log = workoutLogs.find(l => l.date === dateStr);
+
+    if (!log) return 'none';
+    if (log.completed) return 'completed';
+
+    const completedExercises = log.exercises.filter(e => !e.skipped && e.loggedSets.length > 0).length;
+    const totalExercises = log.exercises.length;
+
+    if (completedExercises === 0) return 'skipped';
+    if (completedExercises < totalExercises) return 'partial';
+    return 'completed';
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-600';
+      case 'partial':
+        return 'bg-yellow-600';
+      case 'skipped':
+        return 'bg-gray-600';
+      default:
+        return 'bg-gray-800';
+    }
+  };
+
   const currentDayIndex = new Date().getDay();
   const isCurrentWeek = isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 0 }));
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold mb-2">Workout Calendar</h2>
-        <p className="text-gray-400">Your weekly training schedule</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold mb-2">Workout Calendar</h2>
+          <p className="text-gray-400">Your training schedule</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setViewMode('week')}
+            className={`px-4 py-2 rounded ${
+              viewMode === 'week' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+            }`}
+          >
+            Week
+          </button>
+          <button
+            onClick={() => setViewMode('month')}
+            className={`px-4 py-2 rounded ${
+              viewMode === 'month' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+            }`}
+          >
+            Month
+          </button>
+        </div>
       </div>
 
+      {/* Month Heat Map View */}
+      {viewMode === 'month' && (
+        <>
+          <div className="flex items-center justify-between bg-gray-800 rounded-lg p-4">
+            <button
+              onClick={() => setCurrentMonthStart(addDays(currentMonthStart, -30))}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+            >
+              ← Previous Month
+            </button>
+            <div className="text-center">
+              <p className="font-semibold">{format(currentMonthStart, 'MMMM yyyy')}</p>
+            </div>
+            <button
+              onClick={() => setCurrentMonthStart(addDays(currentMonthStart, 30))}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+            >
+              Next Month →
+            </button>
+          </div>
+
+          <div className="bg-gray-800 rounded-lg p-6">
+            <div className="grid grid-cols-7 gap-2">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="text-center text-xs text-gray-400 mb-2">
+                  {day}
+                </div>
+              ))}
+
+              {eachDayOfInterval({
+                start: startOfWeek(startOfMonth(currentMonthStart)),
+                end: endOfMonth(currentMonthStart),
+              }).map((date, index) => {
+                const status = getWorkoutStatus(date);
+                const isToday = isSameDay(date, new Date());
+                const isCurrentMonth = date.getMonth() === currentMonthStart.getMonth();
+
+                return (
+                  <div
+                    key={index}
+                    className={`aspect-square rounded p-2 ${getStatusColor(status)} ${
+                      !isCurrentMonth ? 'opacity-30' : ''
+                    } ${isToday ? 'ring-2 ring-white' : ''}`}
+                  >
+                    <p className="text-xs text-center">{format(date, 'd')}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 flex items-center justify-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-green-600 rounded"></div>
+                <span>Completed</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-yellow-600 rounded"></div>
+                <span>Partial</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-600 rounded"></div>
+                <span>Skipped</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-800 border border-gray-600 rounded"></div>
+                <span>Not Started</span>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Week Navigation */}
-      <div className="flex items-center justify-between bg-gray-800 rounded-lg p-4">
-        <button
-          onClick={() => setCurrentWeekStart(addDays(currentWeekStart, -7))}
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
-        >
-          ← Previous Week
-        </button>
-        <div className="text-center">
-          <p className="font-semibold">
-            {format(currentWeekStart, 'MMM d')} - {format(addDays(currentWeekStart, 6), 'MMM d, yyyy')}
-          </p>
-          {isCurrentWeek && <p className="text-sm text-blue-400">Current Week</p>}
+      {viewMode === 'week' && (
+        <>
+          <div className="flex items-center justify-between bg-gray-800 rounded-lg p-4">
+            <button
+              onClick={() => setCurrentWeekStart(addDays(currentWeekStart, -7))}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition-colors"
+            >
+              ← Previous Week
+            </button>
+            <div className="text-center">
+              <p className="font-semibold">
+                {format(currentWeekStart, 'MMM d')} - {format(addDays(currentWeekStart, 6), 'MMM d, yyyy')}
+              </p>
+              {isCurrentWeek && <p className="text-sm text-blue-400">Current Week</p>}
         </div>
         <button
           onClick={() => setCurrentWeekStart(addDays(currentWeekStart, 7))}
@@ -214,6 +340,8 @@ const WorkoutCalendar = () => {
           );
         })}
       </div>
+        </>
+      )}
 
       {/* Squat Progression Plan */}
       <div className="bg-gray-800 rounded-lg p-6">
